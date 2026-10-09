@@ -235,7 +235,7 @@ curl <API_SERVER>/api/v1/namespaces   -H "Authorization: Bearer <TOKEN>"   --ins
 ```
 ### Example
 ```bash
-curl https://https://47.29.133.221:10443/api/v1/namespaces   -H "Authorization: Bearer <TOKEN>"   --insecure
+curl https://<head-node-ip>:10443/api/v1/namespaces   -H "Authorization: Bearer <TOKEN>"   --insecure
 ```
 ---
 
