@@ -240,13 +240,13 @@ curl https://https://47.29.133.221:10443/api/v1/namespaces   -H "Authorization: 
 ---
 
 # Step 8 — Apply Phase 2 YAML
-## 1. Before that, add the `giindia-dgx-portal` namespace to the excluded namespaces that require no GPU policy, so no additional changes are required.
-## 2. Also change the node for deployment and the persistent path mentioned in each YAML.
-## 3. Review the YAML and apply it.
+1. Before that, add the `giindia-dgx-portal` namespace to the excluded namespaces that require no GPU policy, so no additional changes are required.
+2. Also change the node for deployment and the persistent path mentioned in each YAML.
+3. Review the YAML and apply it.
 
 # Step 9 — Apply Phase 3 YAML
-## 1. Change the node for deployment and the persistent path mentioned in each YAML.
-## 2. Obtain the code from @Zishan, build a custom image, and update the image name in the YAML file.
-## 3. Review the YAML and apply it.
+1. Change the node for deployment and the persistent path mentioned in each YAML.
+2. Obtain the code from @Zishan, build a custom image, and update the image name in the YAML file.
+3. Review the YAML and apply it.
 
 ---
