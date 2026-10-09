@@ -1,0 +1,231 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: giindia-dgx-portal
+---
+### 1. MYSQL DATABASE SERVICE
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dgx-mysql
+  namespace: giindia-dgx-portal
+  labels:
+    app: dgx-mysql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dgx-mysql
+  template:
+    metadata:
+      labels:
+        app: dgx-mysql
+    spec:
+      restartPolicy: Always
+      nodeSelector:
+        kubernetes.io/hostname: mpit-k8s-master
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          env:
+            - name: MYSQL_DATABASE
+              value: dgx_portal
+            - name: MYSQL_ROOT_PASSWORD
+              value: "rootpassword"
+          ports:
+            - containerPort: 3306
+          volumeMounts:
+            - name: mysql-data
+              mountPath: /var/lib/mysql
+      volumes:
+        - name: mysql-data
+          hostPath:
+            path: /workspace/private-storage/giindia-dgx-portal/mysql
+            type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dgx-mysql
+  namespace: giindia-dgx-portal
+spec:
+  selector:
+    app: dgx-mysql
+  type: NodePort
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: 3306
+      nodePort: 30100
+---
+### 2. GUACD PROXY DAEMON
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guacd
+  namespace: giindia-dgx-portal
+  labels:
+    app: guacd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: guacd
+  template:
+    metadata:
+      labels:
+        app: guacd
+    spec:
+      restartPolicy: Always
+      nodeSelector:
+        kubernetes.io/hostname: mpit-k8s-master # Pin to master node
+      containers:
+        - name: guacd
+          image: guacamole/guacd:latest
+          ports:
+            - containerPort: 4822
+          volumeMounts:
+            - name: guac-drive
+              mountPath: /drive
+            - name: guac-record
+              mountPath: /record
+      volumes:
+        - name: guac-drive
+          hostPath:
+            path: /workspace/private-storage/giindia-dgx-portal/guacamole/drive
+            type: DirectoryOrCreate
+        - name: guac-record
+          hostPath:
+            path: /workspace/private-storage/giindia-dgx-portal/guacamole/record
+            type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: guacd
+  namespace: giindia-dgx-portal
+spec:
+  selector:
+    app: guacd
+  ports:
+    - protocol: TCP
+      port: 4822
+      targetPort: 4822
+---
+### 3. POSTGRESQL DATABASE ENGINE (GUACAMOLE BACKEND)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guac-postgres
+  namespace: giindia-dgx-portal
+  labels:
+    app: guac-postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: guac-postgres
+  template:
+    metadata:
+      labels:
+        app: guac-postgres
+    spec:
+      restartPolicy: Always
+      nodeSelector:
+        kubernetes.io/hostname: mpit-k8s-master # Pin to master node
+      initContainers:
+        - name: init-schema
+          image: guacamole/guacamole:latest
+          command: ["/bin/sh", "-c", "/opt/guacamole/bin/initdb.sh --postgresql > /docker-entrypoint-initdb.d/initdb.sql"]
+          volumeMounts:
+            - name: init-script
+              mountPath: /docker-entrypoint-initdb.d
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          env:
+            - name: POSTGRES_DB
+              value: guacamole_db
+            - name: POSTGRES_USER
+              value: guacamole_user
+            - name: POSTGRES_PASSWORD
+              value: ChooseYourSecurePassword123!
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+            - name: init-script
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: postgres-data
+          hostPath:
+            path: /workspace/private-storage/giindia-dgx-portal/guacamole/postgres
+            type: DirectoryOrCreate
+        - name: init-script
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: guac-postgres
+  namespace: giindia-dgx-portal
+spec:
+  selector:
+    app: guac-postgres
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+---
+### 4. GUACAMOLE WEB APPLICATION FRONT-END
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guacamole
+  namespace: giindia-dgx-portal
+  labels:
+    app: guacamole
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: guacamole
+  template:
+    metadata:
+      labels:
+        app: guacamole
+    spec:
+      restartPolicy: Always
+      nodeSelector:
+        kubernetes.io/hostname: mpit-k8s-master # Pin to master node
+      containers:
+        - name: guacamole
+          image: guacamole/guacamole:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: GUACD_HOSTNAME
+              value: "guacd"
+            - name: POSTGRESQL_HOSTNAME
+              value: "guac-postgres"
+            - name: POSTGRESQL_DATABASE
+              value: "guacamole_db"
+            - name: POSTGRESQL_USERNAME
+              value: "guacamole_user"
+            - name: POSTGRESQL_PASSWORD
+              value: "ChooseYourSecurePassword123!"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: guacamole
+  namespace: giindia-dgx-portal
+spec:
+  type: NodePort
+  selector:
+    app: guacamole
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: 30101

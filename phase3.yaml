@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dgx-portal
+  namespace: giindia-dgx-portal
+  labels:
+    app: dgx-portal
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dgx-portal
+  template:
+    metadata:
+      labels:
+        app: dgx-portal
+    spec:
+      restartPolicy: Always
+      nodeSelector:
+        kubernetes.io/hostname: mpit-k8s-master
+      containers:
+        - name: dgx-portal
+          image: mpit-headnode:9443/custom/poc-dgx-portal:v1.2
+          ports:
+            - containerPort: 3000
+          volumeMounts:
+            - name: ssl-certs
+              mountPath: /app/server/ssl
+              readOnly: true
+      volumes:
+        - name: ssl-certs
+          hostPath:
+            path: /workspace/private-storage/giindia-dgx-portal/poc-dgx-portal/server/ssl
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dgx-portal
+  namespace: giindia-dgx-portal
+spec:
+  type: NodePort
+  selector:
+    app: dgx-portal
+  ports:
+    - port: 3000
+      targetPort: 3000
+      nodePort: 30102
